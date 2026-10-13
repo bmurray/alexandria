@@ -264,3 +264,13 @@ a.tile:hover { text-decoration: none; transform: translateY(-2px); box-shadow: v
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---- legal pages and footer links ---- */
+.footer__links { display: flex; gap: 1rem; }
+.footer__links a { color: var(--muted); text-decoration: none; }
+.footer__links a:hover { color: var(--ink); text-decoration: underline; }
+.legal { gap: 0.75rem; line-height: 1.6; }
+.legal h2 { font-family: var(--font-display); font-size: 1.25rem; margin-top: 1rem; }
+.legal ul { padding-left: 1.25rem; display: grid; gap: 0.5rem; }
+.legal code { font-size: 0.9em; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--accent); font-weight: 600; }

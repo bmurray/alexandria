@@ -88,3 +88,11 @@ test('/users is forbidden for a librarian', async ({ page }) => {
   await signInPage(page, { email: uniqueEmail('ui-forbidden'), name: 'Not An Admin', role: 'librarian' }, '/users')
   await expect(page.getByText(/403|forbidden|not allowed|permission/i).first()).toBeVisible({ timeout: 15_000 })
 })
+
+test('terms and privacy pages are public', async ({ page }) => {
+  await page.goto('/tos')
+  await expect(page.getByRole('heading', { level: 1, name: /borrowing from/i })).toBeVisible()
+  await page.goto('/privacy')
+  await expect(page.getByRole('heading', { level: 1, name: /keeps about you/i })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Legal' }).getByRole('link', { name: 'Terms' })).toBeVisible()
+})

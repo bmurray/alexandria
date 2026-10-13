@@ -18,6 +18,7 @@ import { Login } from './routes/Login'
 import { AuthCallback } from './routes/AuthCallback'
 import { Account } from './routes/Account'
 import { NotFound } from './routes/NotFound'
+import { Privacy, Terms } from './routes/Legal'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1, staleTime: 10 * 1000 } },
@@ -37,6 +38,8 @@ export function App() {
                     <Route path="/books/:id" element={<Book />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/tos" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
                     <Route path="/me/loans" element={<Navigate to="/loans" replace />} />
 
                     <Route element={<RequireRole min="member" />}>

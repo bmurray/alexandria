@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { useConfig } from '../hooks/useConfig'
 import { TopBar } from './TopBar'
 import { Toasts } from './Toasts'
@@ -19,6 +19,10 @@ export function Layout() {
       <footer className="footer">
         <span>{config.data?.libraryName || 'The Library of Alexandria'}</span>
         <span className="muted">Loans run {config.data?.loanDays ?? 21} days. Return early, the next reader thanks you.</span>
+        <nav className="footer__links" aria-label="Legal">
+          <Link to="/tos">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+        </nav>
       </footer>
       <Toasts />
       {aiEnabled && <LibrarianDrawer />}
