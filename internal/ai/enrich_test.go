@@ -80,7 +80,7 @@ func TestEnrichTitleSearchAndModelOnly(t *testing.T) {
 	withOpenLibrary(t, svc, olHandler)
 
 	res, err := svc.Enrich(ctx, EnrichInput{Title: "Emma", Author: "Austen"}, "")
-	if err != nil || res.Source != SourceBoth || *res.Suggestion.Author != "Jane Austen" || *res.Suggestion.Genre != "Classics" || *res.Suggestion.CoverURL != "https://covers.test/b/id/7-L.jpg" {
+	if err != nil || res.Source != SourceBoth || *res.Suggestion.Author != "Jane Austen" || *res.Suggestion.Genre != "Classics" || *res.Suggestion.CoverURL != "https://covers.test/b/id/7-L.jpg?default=false" {
 		t.Fatalf("%+v %v", res, err)
 	}
 	// Open Library has nothing: model only.
