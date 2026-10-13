@@ -1,0 +1,135 @@
+# Every push and PR: Go (codegen drift, vet, build, race tests), web (lint,
+# typecheck, test, build), Playwright e2e against the real binary, a manifest
+# render to prove the deploy schema, and a multi-arch image build to prove
+# the Dockerfile. Nothing is published here: images and the Flux OCI
+# artifact come only from semver tags (release.yml).
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  PKL_VERSION: "0.32.1"
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: ${{ env.PKL_VERSION }}
+      - name: Codegen is current
+        run: |
+          make gen-force
+          git diff --exit-code -- internal/gen \
+            || { echo "::error::internal/gen is stale; run 'make gen' and commit"; exit 1; }
+      - run: go vet -tags dev ./cmd/... ./internal/... ./config/... ./web
+      - run: go build -tags dev ./cmd/... ./internal/... ./config/... ./web
+      - run: go test -race -count=1 -tags dev ./cmd/... ./internal/... ./config/... ./web
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+
+  # The production binary (embedded web build, no dev tag) against the
+  # Playwright suite, exactly what the documented API promises.
+  e2e:
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+      - uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: ${{ env.PKL_VERSION }}
+      - name: Build the real binary
+        run: make build
+      - name: Start the server
+        run: |
+          CONFIG_FILE=configs/e2e.pkl ./bin/alexandria > server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:24380/api/readyz >/dev/null 2>&1; then
+              echo "ready after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::server did not become ready"; cat server.log; exit 1
+      - name: Install Playwright
+        run: make e2e-install
+      - name: Playwright
+        run: make e2e
+      - name: Server log
+        if: failure()
+        run: cat server.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+      - name: Stop the server
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
+
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: ${{ env.PKL_VERSION }}
+      - name: Render
+        run: IMAGE_TAG=ci make manifests
+      - name: Artifact safety
+        run: |
+          f=deploy/out/k3s/manifests/alexandria.yaml
+          grep -q 'alexandria:ci' "$f"
+          ! grep -q '^kind: ServiceAccount' "$f" || { echo "::error::ServiceAccount in artifact"; exit 1; }
+          ! grep -q '^kind: Secret$' "$f" || { echo "::error::Secret in artifact"; exit 1; }
+
+  # Every stage runs on the build platform; only the outputs are
+  # target-arch. push: false — this only proves the image builds.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ env.IMAGE }}:ci
+          build-args: |
+            PKL_VERSION=${{ env.PKL_VERSION }}
+            VERSION=ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

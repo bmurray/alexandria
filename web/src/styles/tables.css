@@ -1,0 +1,9 @@
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.table th, .table td { padding: 0.7rem 0.9rem; text-align: left; vertical-align: middle; border-top: 1px solid var(--line); }
+.table thead th { border-top: 0; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--paper-2); }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.table tr.is-self { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.table tr.is-muted td { opacity: 0.65; }
+.table select { width: auto; padding: 0.35rem 0.6rem; }
+.who { display: flex; align-items: center; gap: 0.6rem; }

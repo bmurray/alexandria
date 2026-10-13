@@ -1,0 +1,12 @@
+bin/
+dist/
+web/node_modules/
+web/dist/
+e2e/node_modules/
+deploy/out/
+deploy/secrets/
+configs/*.local.pkl
+*.db
+.git/
+CHAD.md
+CHAD-DEPLOY.md

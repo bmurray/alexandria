@@ -1,0 +1,40 @@
+# Flux objects for Alexandria on the local k3s cluster. Applied by hand once
+# (never by the artifact itself):
+#
+#     kubectl --context default apply -f devops/flux/alexandria.yaml
+#
+# release.yml (semver tags only) renders devops/k3s/alexandria.pkl against
+# the release's image and pushes the YAML as an OCI artifact tagged X.Y.Z;
+# Flux selects the newest semver, so cutting a `vX.Y.Z` tag is the deploy.
+# The Secret and ServiceAccount are not in the artifact: `make bootstrap`
+# renders them and a human applies them.
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: alexandria
+  namespace: flux-system
+spec:
+  interval: 5m
+  timeout: 60s
+  url: oci://ghcr.io/bmurray/alexandria-manifests
+  ref:
+    semver: ">=0.0.0-0" # newest release, prereleases included (house pattern)
+  provider: generic
+  secretRef:
+    name: ghcr-auth # the cluster's existing ghcr pull credential for Flux
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: alexandria
+  namespace: flux-system
+spec:
+  interval: 10m
+  timeout: 3m
+  path: ./
+  prune: true
+  wait: true
+  sourceRef:
+    kind: OCIRepository
+    name: alexandria

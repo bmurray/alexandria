@@ -1,0 +1,25 @@
+/// Authentication and roles.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/auth" }
+module alexandria.auth.Auth
+
+import "@pkl.golang/go.pkl"
+import "provider/Provider.pkl"
+
+class Session {
+  cookieName: String = "alexandria_session"
+  durationHours: UInt16 = 720
+  /// Set the Secure flag on the cookie. Must be true behind HTTPS.
+  secureCookie: Boolean = false
+}
+
+/// Sign-in methods, in the order the login page shows them.
+providers: Listing<Provider> = new {}
+
+session: Session = new {}
+
+/// Emails that become `admin` on first sign-in (and are promoted on sign-in
+/// if they are not already admin). Everyone else starts as `member`.
+admins: Listing<String> = new {}
+
+/// If non-empty, only emails on these domains may sign in.
+allowedEmailDomains: Listing<String> = new {}

@@ -1,0 +1,39 @@
+/// A chat model endpoint with pricing and a spend cap. `priority`, `enabled`
+/// and `spendLimitUsd` seed the ai_providers table on first start; after that
+/// the database is the runtime truth and admins edit it through the API.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/ai/provider" }
+abstract module alexandria.ai.provider.Provider
+
+import "@pkl.golang/go.pkl"
+import "../../credential/Credential.pkl"
+import "../../credential/Static.pkl"
+
+fixed type: String
+
+/// Unique name used in the API, metrics and the database.
+name: String(matches(Regex("[a-z0-9-]+")))
+
+/// Model identifier sent to the endpoint.
+model: String(!isEmpty)
+
+apiKey: Credential = new Static { value = "" }
+
+/// Price per million input tokens, USD.
+inputCostPerMillionUsd: Float = 0.0
+/// Price per million output tokens, USD.
+outputCostPerMillionUsd: Float = 0.0
+/// Price per million prompt-cache read tokens, USD.
+cacheReadCostPerMillionUsd: Float = 0.0
+
+/// Maximum output tokens per request.
+maxTokens: UInt32 = 4096
+
+/// Lower runs first. The cheapest fallback should have the highest number.
+priority: UInt16 = 100
+
+/// Initial spend cap in USD; null = unlimited.
+spendLimitUsd: Float?
+
+enabled: Boolean = true
+
+timeoutSeconds: UInt16 = 120

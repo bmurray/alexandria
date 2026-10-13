@@ -1,0 +1,124 @@
+/// Deployment inputs for Alexandria on Kubernetes. Amend this from an
+/// environment file (devops/k3s/alexandria.pkl for the local k3s cluster)
+/// and feed it to Manifests.pkl.
+///
+/// Per CHAD-DEPLOY.md: no ServiceAccount here (deploy-owned), no secret
+/// values (the Secret is created out of band by deploy/secrets.sh and only
+/// *named*; this file names its data keys), Gateway API only, resource
+/// requests and limits on every container.
+///
+/// This module is rendered by the pkl CLI (`make manifests`) and is never
+/// codegen'd or embedded in the binary.
+module alexandria.deploy.k8s.App
+
+import "../../credential/K8sSecret.pkl"
+
+name: String = "alexandria"
+namespace: String = "alexandria"
+
+/// The image. release.yml renders the artifact with the bare semver tag of
+/// the image it just pushed, so artifact and image share a version.
+image: String = "ghcr.io/bmurray/alexandria:main"
+imagePullPolicy: "IfNotPresent" | "Always" | "Never" = "IfNotPresent"
+
+/// Name of a docker-registry Secret for pulling from a private registry.
+/// Deploy-owned, never in the artifact. Null when the node can pull on its
+/// own (k3s registries.yaml) or the image is public.
+imagePullSecret: String? = null
+
+/// The Deployment names this SA; it never creates it (`make bootstrap`).
+serviceAccountName: String = "alexandria"
+
+/// Hostnames the Gateway listens on. The first is canonical: it is the
+/// public URL, the TLS certificate's host and the OIDC redirect host.
+hostnames: Listing<String>(!isEmpty) = new { "alexandria.bmurray.ca" }
+
+/// Gateway API. CHAD-DEPLOY: Traefik listeners must use the container
+/// entrypoints 8000/8443, not 80/443, or they fail PortUnavailable.
+gatewayClassName: String = "traefik"
+httpPort: Int = 8000
+httpsPort: Int = 8443
+
+/// TLS via cert-manager. Off for a dev cluster without an issuer.
+tls: Boolean = false
+clusterIssuer: String = "letsencrypt-prod"
+
+/// Where the projected config lands. CONFIG_FILE is the only env var.
+configDir: String = "/config"
+configFile: String = "\(configDir)/appconfig.pkl"
+
+/// Secret data keys become files under `secretsDir`. The Secret itself is
+/// never in these manifests; deploy/secrets.sh renders it. The directory
+/// is the K8sSecret credential's default `dir`, so the rendered system.pkl
+/// can say `new K8sSecret { key = "..." }` with no path.
+secretName: String = "\(name)-secrets"
+secretsDir: String = K8sSecret.dir
+
+/// Where the SQLite database lives. The PVC is bound to a static local PV
+/// on the node (the cluster's pattern: everything under /data is backed
+/// up). The directory must exist on the node, writable by uid 65532 (the
+/// image's nonroot user).
+storage: LocalVolume = new {}
+
+class LocalVolume {
+  path: String = "/data/docker_volumes/alexandria"
+  size: String = "2Gi"
+  /// kubernetes.io/hostname of the node holding the directory.
+  node: String = "debian"
+  storageClassName: String = "local-path"
+  /// Mount point in the container; database.path is derived from it.
+  mountPath: String = "/data"
+}
+
+/// Direct OTLP gRPC to the cluster's otel-lgtm service (no sidecar).
+otelEnabled: Boolean = false
+otelEndpoint: String = "monitoring.monitoring.svc.cluster.local:4317"
+otelEnvironment: String = "prod"
+
+resources: Resources = new {}
+
+class Resources {
+  cpuRequest: String = "50m"
+  memoryRequest: String = "128Mi"
+  memoryLimit: String = "512Mi"
+}
+
+// --- application inputs ---------------------------------------------------
+// Everything below lands in the rendered system.pkl ConfigMap.
+
+/// Emails that become `admin` on first sign-in.
+admins: Listing<String> = new {}
+
+/// Google sign-in. Null renders no OIDC provider (nobody can sign in on a
+/// public host, since the Dev provider is never rendered here).
+google: GoogleOidc? = null
+
+class GoogleOidc {
+  /// OAuth client ID. Public by design (it is in every redirect URL);
+  /// the client secret is the Secret key below.
+  clientId: String(!isEmpty)
+  /// Secret data key holding the OAuth client secret.
+  secretKey: String = "google-client-secret"
+}
+
+/// Ask the Librarian and Enrich. Two Anthropic providers: Opus first with a
+/// cap, Haiku as the fallback. Prices match configs/dev.pkl.
+ai: AiApp = new {}
+
+class AiApp {
+  enabled: Boolean = true
+  /// Secret data key holding the Anthropic API key (shared by both providers).
+  anthropicKey: String = "anthropic-api-key"
+  /// Initial spend cap for the Opus provider; null = unlimited.
+  opusSpendLimitUsd: Float? = 10.0
+  /// Initial spend cap for the Haiku fallback; null = unlimited.
+  haikuSpendLimitUsd: Float? = null
+  /// Ceiling across all providers per calendar day; null = none.
+  dailySpendLimitUsd: Float? = 15.0
+}
+
+/// Loan period in days.
+loanDays: Int(this > 0) = 21
+
+/// Shown in the header and the page title.
+libraryName: String = "The Library of Alexandria"

@@ -1,0 +1,17 @@
+/// Development sign-in: `POST /api/auth/dev/login` with any email, name and
+/// role creates or signs in that user. Never enable this on a public host;
+/// startup refuses it when `server.publicUrl` is not localhost unless
+/// `allowPublic` is set (e2e in CI runs on localhost, so it never is).
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/auth/provider/dev" }
+module alexandria.auth.provider.Dev
+
+extends "Provider.pkl"
+
+import "@pkl.golang/go.pkl"
+
+fixed type = "dev"
+
+name = "dev"
+displayName = "Development sign-in"
+
+allowPublic: Boolean = false

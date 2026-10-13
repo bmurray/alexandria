@@ -1,0 +1,23 @@
+# Internal guidance files (not committed)
+CHAD.md
+CHAD-DEPLOY.md
+
+bin/
+dist/
+web/dist/
+web/node_modules/
+web/tsconfig.tsbuildinfo
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+configs/*.local.pkl
+deploy/out/
+deploy/secrets/
+*.pklbin
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+.pkl-cache/
+internal/gen/.stamp

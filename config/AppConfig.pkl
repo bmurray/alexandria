@@ -1,0 +1,54 @@
+/// Application configuration schema for Alexandria. Runtime files amend this
+/// (`amends "@schema/AppConfig.pkl"`). CONFIG_FILE is the only environment
+/// variable the process reads.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/appconfig" }
+module alexandria.AppConfig
+
+import "@pkl.golang/go.pkl"
+import "auth/Auth.pkl"
+import "ai/Ai.pkl"
+import "Otel.pkl"
+
+class Server {
+  host: String = ""
+  port: UInt16 = 8080
+
+  /// Origin the browser uses: OIDC redirect URIs and cookies derive from it.
+  publicUrl: String(startsWith("http://") || startsWith("https://")) = "http://localhost:8080"
+
+  /// Hostnames this instance answers on. The k8s schema derives Gateway
+  /// listeners and HTTPRoute hostnames from this list; the first is canonical.
+  hostnames: Listing<String> = new {}
+
+  /// In development, proxy everything that is not /api to the Vite server.
+  /// Null serves the embedded web build.
+  devProxy: String?
+
+  readHeaderTimeoutSeconds: UInt16 = 10
+  shutdownTimeoutSeconds: UInt16 = 20
+}
+
+class Database {
+  /// SQLite file. The directory must exist and be writable.
+  path: String = "alexandria.db"
+  migrateOnStart: Boolean = true
+}
+
+class Library {
+  /// Shown in the header and the page title.
+  name: String = "The Library of Alexandria"
+  /// Loan period.
+  loanDays: UInt16(this > 0) = 21
+  /// Days a ready hold waits for pickup before it lapses to the next person.
+  holdPickupDays: UInt16(this > 0) = 7
+  /// Seed the catalog with a starter set of classics when the books table is empty.
+  seedOnEmpty: Boolean = true
+}
+
+logLevel: "debug" | "info" | "warn" | "error" = "info"
+server: Server = new {}
+database: Database = new {}
+library: Library = new {}
+auth: Auth = new {}
+ai: Ai = new {}
+otel: Otel = new {}

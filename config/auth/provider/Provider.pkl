@@ -1,0 +1,17 @@
+/// A way to sign in. Variants: Oidc (Google or any OpenID Connect issuer) and
+/// Dev (a form that mints any user; local development and e2e only).
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/auth/provider" }
+abstract module alexandria.auth.provider.Provider
+
+import "@pkl.golang/go.pkl"
+
+fixed type: String
+
+/// Short identifier used in URLs (`/api/auth/oidc/<name>/start`) and on the
+/// identities table. Lowercase letters, digits and dashes.
+name: String(matches(Regex("[a-z0-9-]+")))
+
+/// Label on the sign-in button.
+displayName: String
+
+enabled: Boolean = true

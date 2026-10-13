@@ -1,0 +1,7 @@
+// Environment config for the local k3s cluster lives here, outside the
+// schema package so it is never embedded in the binary.
+amends "pkl:Project"
+
+dependencies {
+  ["schema"] = import("../../config/PklProject")
+}

@@ -1,0 +1,20 @@
+/// OpenTelemetry: traces, metrics and logs over OTLP gRPC. On the k3s cluster
+/// the endpoint is the otel-lgtm service in namespace `monitoring`.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/otel" }
+module alexandria.Otel
+
+import "@pkl.golang/go.pkl"
+
+enabled: Boolean = false
+
+/// OTLP gRPC endpoint (host:port).
+endpoint: String = "localhost:4317"
+insecure: Boolean = true
+
+serviceName: String = "alexandria"
+/// Deployment environment resource attribute.
+environment: String = "dev"
+
+/// Trace sampling ratio (0.0 = none, 1.0 = all).
+traceSampleRatio: Float(this >= 0.0 && this <= 1.0) = 1.0
+metricIntervalSeconds: UInt16 = 30

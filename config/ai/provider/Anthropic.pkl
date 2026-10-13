@@ -1,0 +1,16 @@
+/// Anthropic Messages API through the official Go SDK.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/ai/provider/anthropic" }
+module alexandria.ai.provider.Anthropic
+
+extends "Provider.pkl"
+
+import "@pkl.golang/go.pkl"
+
+fixed type = "anthropic"
+
+/// Base URL override; null uses the SDK default (https://api.anthropic.com).
+baseUrl: String?
+
+/// Reasoning effort passed as output_config.effort. Opus 5.5 defaults to
+/// medium server-side; chat over a small catalog is fine at low.
+effort: "low" | "medium" | "high" = "low"

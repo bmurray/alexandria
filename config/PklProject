@@ -1,0 +1,18 @@
+amends "pkl:Project"
+
+package {
+  name = "alexandria-config"
+  baseUri = "package://pkg.bmurray.ca/alexandria-config"
+  version = "0.1.0"
+  packageZipUrl = "https://github.com/bmurray/alexandria/releases/download/config@\(version)/alexandria-config-\(version).zip"
+  authors { "brian@bmurray.ca" }
+}
+
+dependencies {
+  // Go codegen annotations (@go.Package). bmurray/pkl-loader wraps
+  // apple/pkl-go v0.13.2, so the schema pins the matching pkl.golang release.
+  ["pkl.golang"] { uri = "package://pkg.pkl-lang.org/pkl-go/pkl.golang@0.13.2" }
+  // Kubernetes and Gateway API types (deploy schema only, not codegen'd).
+  ["k8s"] { uri = "package://pkg.pkl-lang.org/pkl-k8s/k8s@1.4.1" }
+  ["gateway"] { uri = "package://pkg.pkl-lang.org/pkl-pantry/k8s.networking.gateway@1.0.0" }
+}

@@ -1,0 +1,387 @@
+/// Renders the Kubernetes workload manifests for an App as a YAML stream.
+///
+///     pkl eval --project-dir devops/k3s -o deploy/out/k3s/manifests/alexandria.yaml devops/k3s/alexandria.pkl
+///
+/// One Deployment (one replica, Recreate: SQLite has one writer and the PVC
+/// is ReadWriteOnce) mounts a projected config directory (system.pkl +
+/// appconfig.pkl) and a projected secrets directory, as CHAD-DEPLOY lays
+/// out. Nothing here is a secret value; the Secret and ServiceAccount are
+/// rendered by deploy/secrets.sh and applied by hand.
+module alexandria.deploy.k8s.Manifests
+
+import "@k8s/K8sResource.pkl"
+import "@k8s/api/core/v1/Namespace.pkl"
+import "@k8s/api/core/v1/ConfigMap.pkl"
+import "@k8s/api/core/v1/Service.pkl"
+import "@k8s/api/core/v1/PersistentVolume.pkl"
+import "@k8s/api/core/v1/PersistentVolumeClaim.pkl"
+import "@k8s/api/apps/v1/Deployment.pkl"
+import "@gateway/v1/Gateway.pkl"
+import "@gateway/v1/HTTPRoute.pkl"
+
+import "App.pkl"
+
+app: App
+
+local canonicalHost = app.hostnames.toList().first
+local systemConfigMap = "\(app.name)-system"
+local appConfigMap = "\(app.name)-config"
+local dataClaim = "\(app.name)-data"
+local dataVolume = "\(app.name)-data-pv"
+local gatewayName = "\(app.name)-gateway"
+// Named so it never collides with the k8s `containerPort`/`port` properties
+// it feeds: inside an object body an unqualified name resolves to the
+// object's own property first.
+local appPort = 8080
+
+// --- system.pkl ------------------------------------------------------------
+// Cluster facts and credential *references*, rendered from App. Credentials
+// are K8sSecret keys (files under app.secretsDir), never values.
+
+local function quoted(items: Listing<String>, indent: String): String =
+  items.toList().map((s) -> "\(indent)\"\(s)\"").join("\n")
+
+local function floatOrNull(v: Float?): String = if (v == null) "null" else "\(v)"
+
+local function googlePkl(g: App.GoogleOidc): String = """
+      new Oidc {
+        name = "google"
+        displayName = "Google"
+        issuer = "https://accounts.google.com"
+        clientId = "\(g.clientId)"
+        clientSecret = new K8sSecret { key = "\(g.secretKey)" }
+        extraAuthParams { ["prompt"] = "select_account" }
+      }
+  """.trimEnd()
+
+// Prices are Anthropic list prices per million tokens, 2026-10, the same
+// as configs/dev.pkl (claude-api skill). Both providers read one key.
+local function aiPkl(a: App.AiApp): String = """
+  ai {
+    enabled = \(a.enabled)
+    dailySpendLimitUsd = \(floatOrNull(a.dailySpendLimitUsd))
+    providers {
+      new Anthropic {
+        name = "anthropic-opus"
+        model = "claude-opus-5-5"
+        apiKey = new K8sSecret { key = "\(a.anthropicKey)" }
+        inputCostPerMillionUsd = 4.0
+        outputCostPerMillionUsd = 20.0
+        cacheReadCostPerMillionUsd = 0.20
+        priority = 10
+        spendLimitUsd = \(floatOrNull(a.opusSpendLimitUsd))
+      }
+      new Anthropic {
+        name = "anthropic-haiku"
+        model = "claude-haiku-5-5"
+        apiKey = new K8sSecret { key = "\(a.anthropicKey)" }
+        inputCostPerMillionUsd = 0.10
+        outputCostPerMillionUsd = 0.50
+        priority = 20
+        spendLimitUsd = \(floatOrNull(a.haikuSpendLimitUsd))
+      }
+    }
+  }
+  """.trimEnd()
+
+local systemPkl = """
+  // Rendered by config/deploy/k8s/Manifests.pkl from the environment file.
+  // Owned by automation; operator overrides go in appconfig.pkl.
+  amends "@schema/AppConfig.pkl"
+
+  import "@schema/auth/provider/Oidc.pkl"
+  import "@schema/ai/provider/Anthropic.pkl"
+  import "@schema/credential/K8sSecret.pkl"
+
+  logLevel = "info"
+
+  server {
+    port = \(appPort)
+    publicUrl = "\(if (app.tls) "https" else "http")://\(canonicalHost)"
+    hostnames {
+  \(quoted(app.hostnames, "    "))
+    }
+    devProxy = null
+  }
+
+  database {
+    path = "\(app.storage.mountPath)/alexandria.db"
+  }
+
+  library {
+    name = "\(app.libraryName)"
+    loanDays = \(app.loanDays)
+  }
+
+  auth {
+    // The Dev provider is never rendered here: on a public host only OIDC.
+    providers {
+  \(if (app.google == null) "    // none configured: nobody can sign in" else googlePkl(app.google!!))
+    }
+    session { secureCookie = \(app.tls) }
+    admins {
+  \(quoted(app.admins, "    "))
+    }
+  }
+
+  \(aiPkl(app.ai))
+
+  otel {
+    enabled = \(app.otelEnabled)
+    endpoint = "\(app.otelEndpoint)"
+    insecure = true
+    environment = "\(app.otelEnvironment)"
+  }
+  """
+
+/// appconfig.pkl: the operator's override stub. This is the file
+/// CONFIG_FILE points at; an empty amends is valid.
+local appConfigPkl = """
+  // Operator overrides. Amends the rendered system.pkl; empty is valid.
+  amends "system.pkl"
+  """
+
+local appLabels: Mapping<String, String> = new {
+  ["app.kubernetes.io/name"] = app.name
+  ["app.kubernetes.io/component"] = "server"
+}
+
+resources: Listing<K8sResource> = new {
+  new Namespace {
+    metadata { name = app.namespace }
+  }
+
+  new ConfigMap {
+    metadata { name = systemConfigMap; namespace = app.namespace; labels = appLabels }
+    data { ["system.pkl"] = systemPkl }
+  }
+  new ConfigMap {
+    metadata { name = appConfigMap; namespace = app.namespace; labels = appLabels }
+    data { ["appconfig.pkl"] = appConfigPkl }
+  }
+
+  // Static local PV + bound PVC: the database lives on the node under the
+  // backed-up tree, survives the Deployment, and is never provisioned
+  // somewhere surprising. Retain: deleting the claim must not delete the
+  // library.
+  new PersistentVolume {
+    metadata { name = dataVolume; labels = appLabels }
+    spec {
+      capacity { ["storage"] = app.storage.size }
+      accessModes { "ReadWriteOnce" }
+      persistentVolumeReclaimPolicy = "Retain"
+      storageClassName = app.storage.storageClassName
+      volumeMode = "Filesystem"
+      `local` { path = app.storage.path }
+      nodeAffinity {
+        required {
+          nodeSelectorTerms {
+            new {
+              matchExpressions {
+                new { key = "kubernetes.io/hostname"; operator = "In"; values { app.storage.node } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  new PersistentVolumeClaim {
+    metadata { name = dataClaim; namespace = app.namespace; labels = appLabels }
+    spec {
+      accessModes { "ReadWriteOnce" }
+      storageClassName = app.storage.storageClassName
+      volumeMode = "Filesystem"
+      volumeName = dataVolume
+      resources { requests { ["storage"] = app.storage.size } }
+    }
+  }
+
+  // Readiness is /api/readyz (the database answers); liveness is the plain
+  // /api/healthz so a pod mid-migration is not killed.
+  new Deployment {
+    metadata { name = app.name; namespace = app.namespace; labels = appLabels }
+    spec {
+      replicas = 1
+      strategy { type = "Recreate" }
+      selector { matchLabels = appLabels }
+      template {
+        metadata { labels = appLabels }
+        spec {
+          serviceAccountName = app.serviceAccountName
+          when (app.imagePullSecret != null) {
+            imagePullSecrets { new { name = app.imagePullSecret!! } }
+          }
+          // pkl-go spawns a `pkl server` child; the pause container reaps it.
+          shareProcessNamespace = true
+          securityContext {
+            runAsNonRoot = true
+            runAsUser = 65532
+            runAsGroup = 65532
+            fsGroup = 65532
+          }
+          containers {
+            new {
+              name = app.name
+              image = app.image
+              imagePullPolicy = app.imagePullPolicy
+              ports {
+                new { name = "http"; containerPort = appPort }
+              }
+              env {
+                new { name = "CONFIG_FILE"; value = app.configFile }
+              }
+              volumeMounts {
+                new { name = "config"; mountPath = app.configDir; readOnly = true }
+                new { name = "secrets"; mountPath = app.secretsDir; readOnly = true }
+                new { name = "data"; mountPath = app.storage.mountPath }
+              }
+              resources {
+                requests {
+                  ["cpu"] = app.resources.cpuRequest
+                  ["memory"] = app.resources.memoryRequest
+                }
+                limits {
+                  ["memory"] = app.resources.memoryLimit
+                }
+              }
+              livenessProbe {
+                httpGet { path = "/api/healthz"; port = appPort }
+                periodSeconds = 10
+              }
+              readinessProbe {
+                httpGet { path = "/api/readyz"; port = appPort }
+                periodSeconds = 5
+                failureThreshold = 3
+              }
+              securityContext {
+                allowPrivilegeEscalation = false
+                readOnlyRootFilesystem = true
+                capabilities { drop { "ALL" } }
+              }
+            }
+          }
+          volumes {
+            // One directory, two sources, so `amends "system.pkl"` resolves.
+            new {
+              name = "config"
+              projected {
+                sources {
+                  new { configMap { name = systemConfigMap } }
+                  new { configMap { name = appConfigMap } }
+                }
+              }
+            }
+            new {
+              name = "secrets"
+              projected {
+                sources {
+                  new { secret { name = app.secretName } }
+                }
+              }
+            }
+            new {
+              name = "data"
+              persistentVolumeClaim { claimName = dataClaim }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  new Service {
+    metadata { name = app.name; namespace = app.namespace; labels = appLabels }
+    spec {
+      selector = appLabels
+      ports {
+        new { name = "http"; port = 80; targetPort = appPort }
+      }
+    }
+  }
+
+  // Gateway and routes follow the cluster's existing pattern: one Gateway
+  // per app with `http` and `https` listeners on the canonical host, the
+  // cert Secret named <host-with-dashes>-tls for cert-manager, the real
+  // route bound to the https section, and a separate route on http that
+  // only redirects. external-dns watches HTTPRoute hostnames.
+  new Gateway {
+    metadata {
+      name = gatewayName
+      namespace = app.namespace
+      labels = appLabels
+      when (app.tls) {
+        annotations { ["cert-manager.io/cluster-issuer"] = app.clusterIssuer }
+      }
+    }
+    spec {
+      gatewayClassName = app.gatewayClassName
+      listeners {
+        new {
+          name = "http"
+          protocol = "HTTP"
+          port = app.httpPort
+          hostname = canonicalHost
+          allowedRoutes { namespaces { from = "Same" } }
+        }
+        when (app.tls) {
+          new {
+            name = "https"
+            protocol = "HTTPS"
+            port = app.httpsPort
+            hostname = canonicalHost
+            tls {
+              mode = "Terminate"
+              certificateRefs {
+                new { kind = "Secret"; name = "\(canonicalHost.replaceAll(".", "-"))-tls" }
+              }
+            }
+            allowedRoutes { namespaces { from = "Same" } }
+          }
+        }
+      }
+    }
+  }
+
+  new HTTPRoute {
+    metadata { name = app.name; namespace = app.namespace; labels = appLabels }
+    spec {
+      parentRefs {
+        new { name = gatewayName; sectionName = if (app.tls) "https" else "http" }
+      }
+      hostnames { canonicalHost }
+      rules {
+        new {
+          matches { new { path { type = "PathPrefix"; value = "/" } } }
+          backendRefs { new { kind = "Service"; name = app.name; port = 80; weight = 1 } }
+        }
+      }
+    }
+  }
+
+  when (app.tls) {
+    new HTTPRoute {
+      metadata { name = "\(app.name)-https-redirect"; namespace = app.namespace; labels = appLabels }
+      spec {
+        parentRefs { new { name = gatewayName; sectionName = "http" } }
+        hostnames { canonicalHost }
+        rules {
+          new {
+            matches { new { path { type = "PathPrefix"; value = "/" } } }
+            filters {
+              new {
+                type = "RequestRedirect"
+                requestRedirect { scheme = "https"; statusCode = 301 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+output {
+  value = resources
+  renderer = (K8sResource.output.renderer as YamlRenderer) { isStream = true }
+}

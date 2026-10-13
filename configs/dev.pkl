@@ -1,0 +1,72 @@
+/// Local development. Secrets and real providers go in configs/dev.local.pkl
+/// (gitignored), which starts with `amends "dev.pkl"`. Never a real key here.
+amends "@schema/AppConfig.pkl"
+
+import "@schema/auth/provider/Dev.pkl"
+import "@schema/auth/provider/Oidc.pkl"
+import "@schema/ai/provider/Anthropic.pkl"
+import "@schema/credential/File.pkl"
+
+logLevel = "debug"
+
+server {
+  port = 24380
+  publicUrl = "http://localhost:24380"
+  devProxy = "http://localhost:24381"
+}
+
+database {
+  path = "alexandria.dev.db"
+}
+
+auth {
+  providers {
+    new Dev {}
+    // Google sign-in. Register http://localhost:24380/api/auth/oidc/google/callback
+    // as a redirect URI; put the client in ~/.config/secrets/alexandria/google-oidc.json
+    // as {"client_id": "...", "client_secret": "..."} and enable in dev.local.pkl:
+    //   auth { providers { [1] { enabled = true } } }
+    new Oidc {
+      name = "google"
+      displayName = "Google"
+      enabled = false
+      issuer = "https://accounts.google.com"
+      clientId = "unset.apps.googleusercontent.com"
+      clientSecret = new File { path = "~/.config/secrets/alexandria/google-oidc.json"; jsonKey = "client_secret" }
+      extraAuthParams { ["prompt"] = "select_account" }
+    }
+  }
+  admins { "brian@bmurray.ca"; "admin@example.com" }
+}
+
+// Prices are Anthropic list prices per million tokens, 2026-10 (claude-api skill).
+// Off until dev.local.pkl turns it on:  ai { enabled = true }
+ai {
+  enabled = false
+  providers {
+    new Anthropic {
+      name = "anthropic-opus"
+      model = "claude-opus-5-5"
+      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
+      inputCostPerMillionUsd = 4.0
+      outputCostPerMillionUsd = 20.0
+      cacheReadCostPerMillionUsd = 0.20
+      priority = 10
+      spendLimitUsd = 10.0
+    }
+    new Anthropic {
+      name = "anthropic-haiku"
+      model = "claude-haiku-5-5"
+      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
+      inputCostPerMillionUsd = 0.10
+      outputCostPerMillionUsd = 0.50
+      priority = 20
+    }
+  }
+}
+
+otel {
+  enabled = false
+  endpoint = "home-monitoring-otlp.barb-kardashev.ts.net:4317"
+  environment = "dev"
+}

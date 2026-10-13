@@ -1,0 +1,30 @@
+/// AI features: Ask the Librarian (chat with catalog tools) and Enrich
+/// (metadata suggestions). Calls go to the lowest-priority-number provider that
+/// is enabled and under its cap; a provider error or exhausted cap falls
+/// through to the next. Every call is priced into the ai_usage ledger.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/ai" }
+module alexandria.ai.Ai
+
+import "@pkl.golang/go.pkl"
+import "provider/Provider.pkl"
+
+enabled: Boolean = false
+
+providers: Listing<Provider> = new {}
+
+/// Prepended to every librarian conversation.
+systemPrompt: String = """
+  You are the librarian of the Library of Alexandria, a small community library.
+  Help people find books in this catalog, check whether a title is available,
+  and suggest what to read next. Use the tools to look things up rather than
+  guessing; only recommend books that exist in this catalog. Be warm and brief.
+  """
+
+/// Maximum tool-call rounds per user message before the model must answer.
+maxToolRounds: UInt8 = 6
+
+/// Conversation turns kept in the prompt.
+historyTurns: UInt16 = 30
+
+/// Ceiling on spend across all providers per calendar day, USD. Null = none.
+dailySpendLimitUsd: Float?

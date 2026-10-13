@@ -1,0 +1,58 @@
+# config@X.Y.Z tags on main: package the Pkl schema and attach it to a
+# GitHub release. CHAD.md: the version comes from the tag, not from
+# PklProject, so the file never needs a bump commit to match.
+#
+# The zip is renamed to match PklProject's packageZipUrl. Serving the
+# package metadata at its baseUri (pkg.bmurray.ca) is separate
+# infrastructure and not done here.
+name: config-release
+
+on:
+  push:
+    tags: ["config@*"]
+
+permissions:
+  contents: write
+
+env:
+  PKL_VERSION: "0.32.1"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag must point at main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag ${GITHUB_REF_NAME} is not on main; refusing to publish"
+            exit 1
+          fi
+
+      - uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: ${{ env.PKL_VERSION }}
+
+      - name: Package
+        id: pkg
+        run: |
+          VERSION="${GITHUB_REF_NAME#config@}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          sed -i -E "s/^(  version = ).*/\1\"$VERSION\"/" config/PklProject
+          cd config
+          pkl project resolve
+          pkl project package --output-path ../dist
+          cd ../dist
+          mv "alexandria-config@${VERSION}.zip" "alexandria-config-${VERSION}.zip"
+          ls -l
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: config ${{ steps.pkg.outputs.version }}
+          files: |
+            dist/alexandria-config-${{ steps.pkg.outputs.version }}.zip
+            dist/alexandria-config@${{ steps.pkg.outputs.version }}

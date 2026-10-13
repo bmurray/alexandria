@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "resolvedDependencies": {
+    "package://pkg.pkl-lang.org/pkl-k8s/k8s@1": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/pkl-k8s/k8s@1.4.1",
+      "checksums": {
+        "sha256": "0520f82219c074d2f4b69ab9c57a4a1c1d0b3c4acc1e5d12749e72e0d567d9bf"
+      }
+    },
+    "package://pkg.pkl-lang.org/pkl-go/pkl.golang@0": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/pkl-go/pkl.golang@0.13.2",
+      "checksums": {
+        "sha256": "f9f6caaab341eab8dfe5677c96db3a29af6dd3c9663512bf09cb920023952a41"
+      }
+    },
+    "package://pkg.pkl-lang.org/pkl-pantry/k8s.networking.gateway@1": {
+      "type": "remote",
+      "uri": "projectpackage://pkg.pkl-lang.org/pkl-pantry/k8s.networking.gateway@1.0.0",
+      "checksums": {
+        "sha256": "cf1080e9c4301b24783bb630b2c812c19766f8d546afcff472d1f257172293ad"
+      }
+    }
+  }
+}

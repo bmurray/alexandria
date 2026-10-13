@@ -1,0 +1,19 @@
+/// End-to-end tests: embedded web build (no Vite proxy), a throwaway database,
+/// the Dev sign-in, no AI, no telemetry. CI needs nothing but the binary.
+amends "dev.pkl"
+
+server {
+  devProxy = null
+}
+
+database {
+  path = "alexandria.e2e.db"
+}
+
+ai {
+  enabled = false
+}
+
+otel {
+  enabled = false
+}

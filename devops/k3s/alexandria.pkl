@@ -1,0 +1,45 @@
+/// Alexandria on the local k3s cluster (context `default`, node `debian`).
+///
+///     make manifests                   # -> deploy/out/k3s/manifests/alexandria.yaml
+///     IMAGE_TAG=0.1.0 make manifests   # what release.yml does for tag v0.1.0
+///
+/// Secrets are named by key only; deploy/secrets.sh renders the Secret from
+/// ~/.config/secrets/alexandria and it is applied by hand (never by Flux).
+amends "@schema/deploy/k8s/Manifests.pkl"
+
+import "@schema/deploy/k8s/App.pkl"
+
+app {
+  image = "ghcr.io/bmurray/alexandria:\(read?("env:IMAGE_TAG") ?? "main")"
+  // The k3s node pulls ghcr with its own registries.yaml credentials.
+  imagePullSecret = null
+
+  // `new Listing`: an untyped `new {}` would amend the default and append.
+  hostnames = new Listing { "alexandria.bmurray.ca" }
+  gatewayClassName = "traefik"
+  tls = true // cert-manager + letsencrypt-prod exist on the k3s cluster
+
+  admins { "brian@bmurray.ca" }
+
+  // The OAuth client ID is public (it appears in every redirect URL), so it
+  // lives here in git; only the client secret goes through the Secret.
+  // Replace the placeholder with the ID from the Google Cloud console
+  // (devops/README.md has the redirect URI to register).
+  google = new App.GoogleOidc {
+    clientId = "unset.apps.googleusercontent.com"
+  }
+
+  ai {
+    enabled = true
+    opusSpendLimitUsd = 10.0
+    dailySpendLimitUsd = 15.0
+  }
+
+  storage {
+    path = "/data/docker_volumes/alexandria" // /data is backed up
+    node = "debian"
+  }
+
+  otelEnabled = true
+  otelEndpoint = "monitoring.monitoring.svc.cluster.local:4317"
+}

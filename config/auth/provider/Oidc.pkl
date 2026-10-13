@@ -1,0 +1,23 @@
+/// OpenID Connect sign-in: authorization code + PKCE, RS256 ID token verified
+/// against the issuer's JWKS. Google: issuer "https://accounts.google.com".
+/// Redirect URI registered with the provider must be
+/// `<server.publicUrl>/api/auth/oidc/<name>/callback`.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/auth/provider/oidc" }
+module alexandria.auth.provider.Oidc
+
+extends "Provider.pkl"
+
+import "@pkl.golang/go.pkl"
+import "../../credential/Credential.pkl"
+import "../../credential/Static.pkl"
+
+fixed type = "oidc"
+
+issuer: String(startsWith("https://"))
+clientId: String(!isEmpty)
+clientSecret: Credential = new Static { value = "" }
+scopes: Listing<String> = new { "openid"; "email"; "profile" }
+
+/// Extra authorization-request parameters, e.g. Google's `hd` to restrict to
+/// one Workspace domain, or `prompt = "select_account"`.
+extraAuthParams: Mapping<String, String> = new {}
