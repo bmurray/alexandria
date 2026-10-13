@@ -42,8 +42,7 @@ the PV is untouched by rollouts (migrations are forward-only; check
 
    ```
    mkdir -p ~/.config/secrets && chmod 700 ~/.config/secrets
-   cat > ~/.config/secrets/valsoft.json   # {"client_id": "...", "client_secret": "..."}
-   cat > ~/.openai/auth.json               # {"key": "sk-..."}
+   cat > ~/.config/secrets/valsoft.json   # {"client_id": "...", "client_secret": "...", "openai_key": "sk-..."}
    ```
 
 2. **Google OAuth client** (Google Cloud console → APIs & Services →

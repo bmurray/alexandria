@@ -8,14 +8,14 @@
 #
 #   google-client-id       <- ~/.config/secrets/valsoft.json .client_id
 #   google-client-secret   <- ~/.config/secrets/valsoft.json .client_secret
-#   openai-api-key         <- ~/.openai/auth.json            .key
+#   openai-api-key         <- ~/.config/secrets/valsoft.json .openai_key
 #
-# The same files back configs/dev.pkl. Values travel via file descriptors,
-# not argv, so they never show in `ps`.
+# One file holds everything the deployment needs (dev reads the Google part
+# of the same file; its OpenAI key is ~/.openai/auth.json). Values travel via
+# file descriptors, not argv, so they never show in `ps`.
 set -euo pipefail
 
-GOOGLE="${GOOGLE_OIDC_JSON:-$HOME/.config/secrets/valsoft.json}"
-OPENAI="${OPENAI_JSON:-$HOME/.openai/auth.json}"
+SECRETS="${SECRETS_JSON:-$HOME/.config/secrets/valsoft.json}"
 NS="${NAMESPACE:-alexandria}"
 APP="${APP:-alexandria}"
 OUT="${OUT_DIR:-deploy/out/k3s/bootstrap}"
@@ -23,23 +23,14 @@ OUT="${OUT_DIR:-deploy/out/k3s/bootstrap}"
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 command -v kubectl >/dev/null || { echo "kubectl is required (only --dry-run=client is used)" >&2; exit 1; }
 
-missing=0
-if [ ! -r "$GOOGLE" ]; then
-  echo "missing $GOOGLE" >&2
-  echo '  expected JSON: {"client_id": "....apps.googleusercontent.com", "client_secret": "GOCSPX-..."}' >&2
-  missing=1
+if [ ! -r "$SECRETS" ]; then
+  echo "missing $SECRETS" >&2
+  echo '  expected JSON: {"client_id": "....apps.googleusercontent.com", "client_secret": "GOCSPX-...", "openai_key": "sk-..."}' >&2
+  exit 1
 fi
-if [ ! -r "$OPENAI" ]; then
-  echo "missing $OPENAI" >&2
-  echo '  expected JSON: {"key": "sk-..."}' >&2
-  missing=1
-fi
-[ "$missing" = 0 ] || exit 1
-
-for pair in "$GOOGLE:client_id" "$GOOGLE:client_secret" "$OPENAI:key"; do
-  f="${pair%%:*}"; k="${pair##*:}"
-  v="$(jq -r --arg k "$k" '.[$k] // empty' "$f")"
-  [ -n "$v" ] || { echo "$f has no non-empty .$k" >&2; exit 1; }
+for k in client_id client_secret openai_key; do
+  v="$(jq -r --arg k "$k" '.[$k] // empty' "$SECRETS")"
+  [ -n "$v" ] || { echo "$SECRETS has no non-empty .$k" >&2; exit 1; }
 done
 
 umask 077
@@ -51,9 +42,9 @@ mkdir -p "$OUT"
 kubectl create secret generic "${APP}-secrets" \
   --namespace "$NS" \
   --dry-run=client -o yaml \
-  --from-file=google-client-id=<(jq -rj .client_id "$GOOGLE") \
-  --from-file=google-client-secret=<(jq -rj .client_secret "$GOOGLE") \
-  --from-file=openai-api-key=<(jq -rj .key "$OPENAI") \
+  --from-file=google-client-id=<(jq -rj .client_id "$SECRETS") \
+  --from-file=google-client-secret=<(jq -rj .client_secret "$SECRETS") \
+  --from-file=openai-api-key=<(jq -rj .openai_key "$SECRETS") \
   > "$OUT/secret.yaml"
 
 # Deploy-owned ServiceAccount; the Deployment only names it.
