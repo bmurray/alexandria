@@ -31,7 +31,7 @@ Response `200`:
   "toolCalls": [
     { "name": "search_books", "input": {"query": "dune"}, "output": "{\"books\":[…],\"count\":1}" }
   ],
-  "usage": { "inputTokens": 812, "outputTokens": 96, "costUsd": 0.005168, "provider": "anthropic-opus", "model": "claude-opus-5-5" }
+  "usage": { "inputTokens": 812, "outputTokens": 96, "costUsd": 0.005168, "provider": "openai-luna", "model": "gpt-6-luna" }
 }
 ```
 `usage` sums every model round of this turn; `provider`/`model` are the ones
@@ -70,7 +70,7 @@ distinguished).
 ```json
 {
   "providers": [
-    { "name": "anthropic-opus", "model": "claude-opus-5-5", "enabled": true, "priority": 10,
+    { "name": "openai-luna", "model": "gpt-6-luna", "enabled": true, "priority": 10,
       "spendLimitUsd": 10, "spentUsd": 3.21, "exceeded": false }
   ],
   "totals": { "todayUsd": 0.42, "allTimeUsd": 3.21, "calls": 57 },
@@ -197,7 +197,7 @@ single turn can cross a cap and finish on the fallback provider.
 ## Configuring providers in Pkl
 
 ```pkl
-import "@schema/ai/provider/Anthropic.pkl"
+import "@schema/ai/provider/OpenAI.pkl"
 import "@schema/credential/File.pkl"
 
 ai {
@@ -205,33 +205,35 @@ ai {
   // systemPrompt, maxToolRounds (default 6), historyTurns (default 20),
   // dailySpendLimitUsd (optional) are also here.
   providers {
-    new Anthropic {
-      name = "anthropic-opus"
-      model = "claude-opus-5-5"
-      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
-      inputCostPerMillionUsd = 4.0
-      outputCostPerMillionUsd = 20.0
-      cacheReadCostPerMillionUsd = 0.20
-      priority = 10          // tried first
-      spendLimitUsd = 10.0   // initial cap; admins change it at runtime
-      // effort = "medium", maxTokens, timeout, baseUrl, enabled also exist
-    }
-    new Anthropic {
-      name = "anthropic-haiku"
-      model = "claude-haiku-5-5"
-      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
+    new OpenAI {
+      name = "openai-luna"
+      model = "gpt-6-luna"
+      apiKey = new File { path = "~/.openai/auth.json"; jsonKey = "key" }
       inputCostPerMillionUsd = 0.10
       outputCostPerMillionUsd = 0.50
-      priority = 20          // fallback once Opus is capped or failing
+      cacheReadCostPerMillionUsd = 0.01
+      priority = 10          // tried first
+      spendLimitUsd = 5.0    // initial cap; admins change it at runtime
+      // reasoningEffort, maxTokens, timeoutSeconds, baseUrl, enabled also exist
+    }
+    new OpenAI {
+      name = "openai-nano"
+      model = "gpt-5-nano"
+      apiKey = new File { path = "~/.openai/auth.json"; jsonKey = "key" }
+      inputCostPerMillionUsd = 0.05
+      outputCostPerMillionUsd = 0.40
+      priority = 20          // fallback once Luna is capped or failing
     }
   }
 }
 ```
 
-Prices are the Anthropic list prices from the `claude-api` skill, never from
-memory. `dev.pkl` ships with `ai { enabled = false }`; turn it on in the
-gitignored `configs/dev.local.pkl`. Model ids are plain strings; `effort`
-(`low|medium|high`) steers Claude's adaptive thinking through
-`output_config.effort` — the `thinking` parameter is never sent because Claude
-Opus 5.5 is always adaptive and rejects `disabled`. Tool choice is left to
-the model (`auto`); forced tool use is not supported on current models.
+Two variants exist: `OpenAI` (Chat Completions over plain HTTP, also any
+OpenAI-compatible server through `baseUrl`, e.g. Ollama) and `Anthropic`
+(Messages API through the official SDK, `effort` steering adaptive thinking).
+Prices are the vendors' list prices (OpenAI: developers.openai.com/api/docs/pricing;
+Anthropic: the `claude-api` skill), never from memory. Model ids are plain
+strings. Tool choice is left to the model (`auto`); tools are sent with
+`strict` only when every property is required, which is what OpenAI's strict
+mode demands. The production models are deliberately cheap: a librarian over a
+60-book catalog does not need a frontier model.

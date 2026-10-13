@@ -21,6 +21,7 @@ import (
 	// Register polymorphic Pkl type mappings (init side effects).
 	_ "github.com/bmurray/alexandria/internal/gen/ai"
 	_ "github.com/bmurray/alexandria/internal/gen/ai/provider/anthropic"
+	_ "github.com/bmurray/alexandria/internal/gen/ai/provider/openai"
 	_ "github.com/bmurray/alexandria/internal/gen/auth"
 	_ "github.com/bmurray/alexandria/internal/gen/auth/provider/dev"
 	_ "github.com/bmurray/alexandria/internal/gen/auth/provider/oidc"

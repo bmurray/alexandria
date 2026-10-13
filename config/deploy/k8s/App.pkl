@@ -94,27 +94,27 @@ admins: Listing<String> = new {}
 google: GoogleOidc? = null
 
 class GoogleOidc {
-  /// OAuth client ID. Public by design (it is in every redirect URL);
-  /// the client secret is the Secret key below.
-  clientId: String(!isEmpty)
+  /// Secret data key holding the OAuth client ID (deploy/secrets.sh reads it
+  /// from ~/.config/secrets/valsoft.json, the same file dev uses).
+  idKey: String = "google-client-id"
   /// Secret data key holding the OAuth client secret.
   secretKey: String = "google-client-secret"
 }
 
-/// Ask the Librarian and Enrich. Two Anthropic providers: Opus first with a
-/// cap, Haiku as the fallback. Prices match configs/dev.pkl.
+/// Ask the Librarian and Enrich. Two cheap OpenAI providers: GPT-6 Luna
+/// first with a cap, GPT-5 nano as the fallback. Prices match configs/dev.pkl.
 ai: AiApp = new {}
 
 class AiApp {
   enabled: Boolean = true
-  /// Secret data key holding the Anthropic API key (shared by both providers).
-  anthropicKey: String = "anthropic-api-key"
-  /// Initial spend cap for the Opus provider; null = unlimited.
-  opusSpendLimitUsd: Float? = 10.0
-  /// Initial spend cap for the Haiku fallback; null = unlimited.
-  haikuSpendLimitUsd: Float? = null
+  /// Secret data key holding the OpenAI API key (shared by both providers).
+  openaiKey: String = "openai-api-key"
+  /// Initial spend cap for the Luna provider; null = unlimited.
+  lunaSpendLimitUsd: Float? = 5.0
+  /// Initial spend cap for the nano fallback; null = unlimited.
+  nanoSpendLimitUsd: Float? = null
   /// Ceiling across all providers per calendar day; null = none.
-  dailySpendLimitUsd: Float? = 15.0
+  dailySpendLimitUsd: Float? = 5.0
 }
 
 /// Loan period in days.

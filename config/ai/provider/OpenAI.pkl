@@ -1,0 +1,17 @@
+/// OpenAI Chat Completions API (also any compatible server such as Ollama or
+/// vLLM via `baseUrl`). Tools and structured JSON output are supported.
+@go.Package { name = "github.com/bmurray/alexandria/internal/gen/ai/provider/openai" }
+module alexandria.ai.provider.OpenAI
+
+extends "Provider.pkl"
+
+import "@pkl.golang/go.pkl"
+
+fixed type = "openai"
+
+/// Base URL without the path; "/chat/completions" is appended.
+baseUrl: String = "https://api.openai.com/v1"
+
+/// `reasoning_effort`. Null omits the field. Note gpt-6-luna only accepts
+/// function tools on Chat Completions with "none".
+reasoningEffort: ("none" | "minimal" | "low" | "medium" | "high")? = null

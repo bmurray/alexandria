@@ -138,9 +138,11 @@ and falls through on error or cap. Every call writes an `ai_usage` row with
 `purpose` (`chat`, `enrich`) and bumps `ai_providers.spent_usd`; OTel counters
 `alexandria.ai.tokens` and `alexandria.ai.cost_usd` carry `provider` and `purpose`.
 
-Default dev providers (claude-api skill, 2026-10): `claude-opus-5-5`
-($4 / $20 per MTok, cache read $0.20) priority 10 with a cap, then
-`claude-haiku-5-5` ($0.10 / $0.50) priority 20 as the fallback.
+Default providers (OpenAI list prices, 2026-10, chosen cheap): `gpt-6-luna`
+($0.10 / $0.50 per MTok, cache read $0.01) priority 10 with a cap, then
+`gpt-5-nano` ($0.05 / $0.40) priority 20 as the fallback. Variants:
+`ai/provider/OpenAI.pkl` (Chat Completions, also OpenAI-compatible servers)
+and `ai/provider/Anthropic.pkl` (Messages API via the official SDK).
 
 ## Enrich
 
@@ -183,7 +185,7 @@ internal/oidc                   stdlib OIDC relying party (discovery, PKCE, RS25
 internal/auth                   users, identities, sessions, roles, dev login
 internal/library                books, loans, holds, search, dashboard (domain + sqlite store)
 internal/openlibrary            Open Library client
-internal/ai                     providers (Anthropic SDK), router/budget, ledger, chat with tools, enrich
+internal/ai                     providers (OpenAI HTTP, Anthropic SDK), router/budget, ledger, chat with tools, enrich
 internal/realtime               in-process hub + websocket on GET
 internal/middleware             session, roles, JSON-only CSRF, logging, recover
 internal/handler                HTTP handlers (one file per area) + json helpers

@@ -10,6 +10,13 @@ database {
   path = "alexandria.e2e.db"
 }
 
+// The Google client file is not present in CI; the Dev sign-in is enough.
+auth {
+  providers {
+    [1] { enabled = false }
+  }
+}
+
 ai {
   enabled = false
 }

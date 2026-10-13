@@ -26,7 +26,7 @@ feature list. If the spec does not call for it, we do not build it:
 | S3 file storage | **Not built.** Cover images are URLs (Open Library). |
 | Compose dev stack | **Not built.** `make dev` needs nothing but Go, Bun, Pkl. |
 | OTel collector sidecar | **Direct OTLP gRPC** to `monitoring.monitoring.svc.cluster.local:4317` (this cluster's otel-lgtm). Off in dev by default. |
-| AWS IRSA / Secrets Manager | **Not built.** Credentials: `Static` (dev), `File` (dev), `K8sSecret` (prod). |
+| AWS IRSA / Secrets Manager | **Not built.** Credentials: `Static` (dev), `File` (dev), `K8sSecret` (prod). Google OAuth client in `~/.config/secrets/valsoft.json`. |
 | EKS / ECR pull-through | **Local k3s** (context `default`), Flux OCI artifact `oci://ghcr.io/bmurray/alexandria-manifests`, images `ghcr.io/bmurray/alexandria`. |
 
 Everything else in CHAD applies: Pkl config with Go codegen, `CONFIG_FILE` as the
@@ -86,8 +86,10 @@ project on this host.
 - `make lint`, `make typecheck`, `make test` must pass before a commit.
 - `internal/app` is the only package that imports `internal/gen`; everything
   else takes plain Go values.
-- Model IDs and prices come from the `claude-api` skill, never from memory.
-  Use the official Anthropic Go SDK.
+- The AI provider is OpenAI (Chat Completions over stdlib HTTP, key in
+  `~/.openai/auth.json`); an Anthropic variant exists too. Model IDs and prices
+  come from the vendors' pricing pages (or the `claude-api` skill for Claude),
+  never from memory.
 - SQLite: one writer. Open with `_pragma=journal_mode(WAL)`, `busy_timeout`,
   `foreign_keys(ON)`; `SetMaxOpenConns(1)` for writes is acceptable at this scale.
 - Websocket: no dedicated paths. `GET /api/books` with `Upgrade: websocket`

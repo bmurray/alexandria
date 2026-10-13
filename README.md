@@ -29,7 +29,7 @@ Bonus:
   title/ISBN: Open Library first, the model fills the gaps; the librarian
   reviews before anything is saved.
 - **Cost caps** — every model call is priced into a ledger; providers have
-  spend caps and priority with fallback (Opus until its cap, then Haiku).
+  spend caps and priority with fallback (GPT-6 Luna until its cap, then GPT-5 nano).
 - **Live updates** — `GET /api/books` with `Upgrade: websocket` streams the
   catalog and change events; the UI never polls.
 - **Holds** — queue for an unavailable book; a return hands it to the next
@@ -44,7 +44,7 @@ Bonus:
 | **SQLite** (`modernc.org/sqlite`, pure Go, WAL) + **FTS5** | One replica, one writer, zero operational surface; full-text search comes with the engine. |
 | **Pkl** config with Go codegen | Typed, validated config with defaults and one-of-many credential sources; the same schema renders the Kubernetes manifests. `CONFIG_FILE` is the only env var. |
 | **React + TypeScript** (Vite, Bun, TanStack Query, Zod, React Router) | Validated data at the boundary, cache-driven UI, no styling library — modern CSS. |
-| **Anthropic Go SDK** | Tool use for the librarian; token counts come back priced per provider. |
+| **OpenAI Chat Completions** (stdlib HTTP; an Anthropic SDK variant too) | Tool use for the librarian; token counts come back priced per provider. |
 | **OpenTelemetry** | Traces, metrics (incl. AI cost counters) and `slog` logs over OTLP to the cluster's Grafana stack. |
 | **Flux GitOps** on k3s | A `vX.Y.Z` tag is the deploy: image + rendered manifests as an OCI artifact; nothing applied by hand after bootstrap. |
 
@@ -69,14 +69,14 @@ Google sign-in and the AI features need keys. Put them in gitignored
 amends "dev.pkl"
 
 // Google OAuth client (redirect URI http://localhost:24380/api/auth/oidc/google/callback).
-// Keys live in ~/.config/secrets/alexandria/google-oidc.json as {"client_id": ..., "client_secret": ...}
+// The Google OAuth client lives in ~/.config/secrets/valsoft.json as {"client_id": ..., "client_secret": ...}
 auth {
   providers {
     [1] { enabled = true; clientId = "1234-abcd.apps.googleusercontent.com" }
   }
 }
 
-// Anthropic key in ~/.config/secrets/alexandria/anthropic.json as {"api_key": "sk-ant-..."}
+// OpenAI key in ~/.openai/auth.json as {"key": "sk-..."}; Google client in ~/.config/secrets/valsoft.json
 ai {
   enabled = true
 }

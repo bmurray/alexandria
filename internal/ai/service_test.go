@@ -95,7 +95,7 @@ func TestNewServiceSeedsAndRejectsBadConfig(t *testing.T) {
 		t.Fatal("INSERT OR IGNORE should keep the runtime cap")
 	}
 
-	if _, err := NewService(ctx, database, Config{Providers: []ProviderConfig{{Name: "x", Type: "openai"}}}, nil, nil); err == nil {
+	if _, err := NewService(ctx, database, Config{Providers: []ProviderConfig{{Name: "x", Type: "nope"}}}, nil, nil); err == nil {
 		t.Fatal("unknown provider type must fail")
 	}
 	if _, err := NewService(ctx, database, Config{Providers: []ProviderConfig{{Name: "x", Type: "anthropic"}, {Name: "x", Type: "anthropic"}}}, nil, nil); err == nil {

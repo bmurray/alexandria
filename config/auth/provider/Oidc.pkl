@@ -14,7 +14,9 @@ import "../../credential/Static.pkl"
 fixed type = "oidc"
 
 issuer: String(startsWith("https://"))
-clientId: String(!isEmpty)
+/// OAuth client id. Not secret, but a Credential so dev and prod can read it
+/// from the same file / Secret as the client secret.
+clientId: Credential
 clientSecret: Credential = new Static { value = "" }
 scopes: Listing<String> = new { "openid"; "email"; "profile" }
 

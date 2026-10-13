@@ -119,6 +119,8 @@ func NewProvider(cfg ProviderConfig, hc *http.Client) (Provider, error) {
 	switch strings.ToLower(cfg.Type) {
 	case "anthropic":
 		return newAnthropic(cfg, hc), nil
+	case "openai":
+		return newOpenAI(cfg, hc), nil
 	default:
 		return nil, fmt.Errorf("%w: %q (provider %q)", ErrUnsupportedProvider, cfg.Type, cfg.Name)
 	}

@@ -14,7 +14,7 @@ type Oidc interface {
 
 	GetIssuer() string
 
-	GetClientId() string
+	GetClientId() credential.Credential
 
 	GetClientSecret() credential.Credential
 
@@ -34,7 +34,9 @@ type OidcImpl struct {
 
 	Issuer string `pkl:"issuer"`
 
-	ClientId string `pkl:"clientId"`
+	// OAuth client id. Not secret, but a Credential so dev and prod can read it
+	// from the same file / Secret as the client secret.
+	ClientId credential.Credential `pkl:"clientId"`
 
 	ClientSecret credential.Credential `pkl:"clientSecret"`
 
@@ -62,7 +64,9 @@ func (rcv OidcImpl) GetIssuer() string {
 	return rcv.Issuer
 }
 
-func (rcv OidcImpl) GetClientId() string {
+// OAuth client id. Not secret, but a Credential so dev and prod can read it
+// from the same file / Secret as the client secret.
+func (rcv OidcImpl) GetClientId() credential.Credential {
 	return rcv.ClientId
 }
 

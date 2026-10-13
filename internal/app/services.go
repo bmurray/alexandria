@@ -13,6 +13,7 @@ import (
 	"github.com/bmurray/alexandria/internal/auth"
 	"github.com/bmurray/alexandria/internal/credential"
 	aianthropic "github.com/bmurray/alexandria/internal/gen/ai/provider/anthropic"
+	aiopenai "github.com/bmurray/alexandria/internal/gen/ai/provider/openai"
 	"github.com/bmurray/alexandria/internal/gen/appconfig"
 	authdev "github.com/bmurray/alexandria/internal/gen/auth/provider/dev"
 	authoidc "github.com/bmurray/alexandria/internal/gen/auth/provider/oidc"
@@ -111,13 +112,20 @@ func authConfig(ctx context.Context, cfg *appconfig.AppConfig, creds *credential
 		}
 		switch v := p.(type) {
 		case authoidc.Oidc:
+			clientID, err := creds.Resolve(ctx, v.GetClientId())
+			if err != nil {
+				return out, fmt.Errorf("auth.providers[%s].clientId: %w", v.GetName(), err)
+			}
 			secret, err := creds.Resolve(ctx, v.GetClientSecret())
 			if err != nil {
 				return out, fmt.Errorf("auth.providers[%s].clientSecret: %w", v.GetName(), err)
 			}
+			if clientID == "" {
+				return out, fmt.Errorf("auth.providers[%s].clientId resolved to an empty string", v.GetName())
+			}
 			out.OIDC = append(out.OIDC, auth.OIDCProvider{
 				Name: v.GetName(), DisplayName: v.GetDisplayName(), Issuer: v.GetIssuer(),
-				ClientID: v.GetClientId(), ClientSecret: secret, Scopes: v.GetScopes(), ExtraAuthParams: v.GetExtraAuthParams(),
+				ClientID: clientID, ClientSecret: secret, Scopes: v.GetScopes(), ExtraAuthParams: v.GetExtraAuthParams(),
 			})
 		case authdev.Dev:
 			public := !strings.Contains(out.PublicURL, "localhost") && !strings.Contains(out.PublicURL, "127.0.0.1")
@@ -156,11 +164,17 @@ func aiConfig(ctx context.Context, cfg *appconfig.AppConfig, creds *credential.R
 			MaxTokens:              int(p.GetMaxTokens()), Priority: int(p.GetPriority()), SpendLimitUSD: p.GetSpendLimitUsd(),
 			Enabled: p.GetEnabled(), Timeout: time.Duration(p.GetTimeoutSeconds()) * time.Second,
 		}
-		if a, ok := p.(aianthropic.Anthropic); ok {
-			if a.GetBaseUrl() != nil {
-				pc.BaseURL = *a.GetBaseUrl()
+		switch v := p.(type) {
+		case aianthropic.Anthropic:
+			if v.GetBaseUrl() != nil {
+				pc.BaseURL = *v.GetBaseUrl()
 			}
-			pc.Effort = a.GetEffort()
+			pc.Effort = v.GetEffort()
+		case aiopenai.OpenAI:
+			pc.BaseURL = v.GetBaseUrl()
+			if v.GetReasoningEffort() != nil {
+				pc.Effort = *v.GetReasoningEffort()
+			}
 		}
 		out.Providers = append(out.Providers, pc)
 	}

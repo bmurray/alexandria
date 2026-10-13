@@ -41,9 +41,9 @@ the PV is untouched by rollouts (migrations are forward-only; check
 1. **Secrets on your machine** (gitignored, mode 600):
 
    ```
-   mkdir -p ~/.config/secrets/alexandria && chmod 700 ~/.config/secrets/alexandria
-   cat > ~/.config/secrets/alexandria/google-oidc.json   # {"client_id": "...", "client_secret": "..."}
-   cat > ~/.config/secrets/alexandria/anthropic.json     # {"api_key": "sk-ant-..."}
+   mkdir -p ~/.config/secrets && chmod 700 ~/.config/secrets
+   cat > ~/.config/secrets/valsoft.json   # {"client_id": "...", "client_secret": "..."}
+   cat > ~/.openai/auth.json               # {"key": "sk-..."}
    ```
 
 2. **Google OAuth client** (Google Cloud console → APIs & Services →
@@ -52,8 +52,8 @@ the PV is untouched by rollouts (migrations are forward-only; check
    - Authorised redirect URI, exactly:
      `https://alexandria.bmurray.ca/api/auth/oidc/google/callback`
    - For local dev add `http://localhost:24380/api/auth/oidc/google/callback` too.
-   - Put the client ID in `devops/k3s/alexandria.pkl` (`google.clientId`;
-     it is public) and the secret in `google-oidc.json` above.
+   - Both the client ID and secret go in `~/.config/secrets/valsoft.json`;
+     `make bootstrap` projects them into the Secret.
    - The consent screen must be *External* (or your Workspace) and, while
      in *Testing*, list the test users who may sign in.
 

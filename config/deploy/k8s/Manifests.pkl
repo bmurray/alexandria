@@ -48,37 +48,40 @@ local function googlePkl(g: App.GoogleOidc): String = """
         name = "google"
         displayName = "Google"
         issuer = "https://accounts.google.com"
-        clientId = "\(g.clientId)"
+        clientId = new K8sSecret { key = "\(g.idKey)" }
         clientSecret = new K8sSecret { key = "\(g.secretKey)" }
         extraAuthParams { ["prompt"] = "select_account" }
       }
   """.trimEnd()
 
-// Prices are Anthropic list prices per million tokens, 2026-10, the same
-// as configs/dev.pkl (claude-api skill). Both providers read one key.
+// Prices are OpenAI list prices per million tokens, 2026-10, the same as
+// configs/dev.pkl (developers.openai.com/api/docs/pricing). Both read one key.
 local function aiPkl(a: App.AiApp): String = """
   ai {
     enabled = \(a.enabled)
     dailySpendLimitUsd = \(floatOrNull(a.dailySpendLimitUsd))
     providers {
-      new Anthropic {
-        name = "anthropic-opus"
-        model = "claude-opus-5-5"
-        apiKey = new K8sSecret { key = "\(a.anthropicKey)" }
-        inputCostPerMillionUsd = 4.0
-        outputCostPerMillionUsd = 20.0
-        cacheReadCostPerMillionUsd = 0.20
-        priority = 10
-        spendLimitUsd = \(floatOrNull(a.opusSpendLimitUsd))
-      }
-      new Anthropic {
-        name = "anthropic-haiku"
-        model = "claude-haiku-5-5"
-        apiKey = new K8sSecret { key = "\(a.anthropicKey)" }
+      new OpenAI {
+        name = "openai-luna"
+        model = "gpt-6-luna"
+        apiKey = new K8sSecret { key = "\(a.openaiKey)" }
         inputCostPerMillionUsd = 0.10
         outputCostPerMillionUsd = 0.50
+        cacheReadCostPerMillionUsd = 0.01
+        reasoningEffort = "none"
+        priority = 10
+        spendLimitUsd = \(floatOrNull(a.lunaSpendLimitUsd))
+      }
+      new OpenAI {
+        name = "openai-nano"
+        model = "gpt-5-nano"
+        apiKey = new K8sSecret { key = "\(a.openaiKey)" }
+        inputCostPerMillionUsd = 0.05
+        outputCostPerMillionUsd = 0.40
+        cacheReadCostPerMillionUsd = 0.005
+        reasoningEffort = "low"
         priority = 20
-        spendLimitUsd = \(floatOrNull(a.haikuSpendLimitUsd))
+        spendLimitUsd = \(floatOrNull(a.nanoSpendLimitUsd))
       }
     }
   }
@@ -90,7 +93,7 @@ local systemPkl = """
   amends "@schema/AppConfig.pkl"
 
   import "@schema/auth/provider/Oidc.pkl"
-  import "@schema/ai/provider/Anthropic.pkl"
+  import "@schema/ai/provider/OpenAI.pkl"
   import "@schema/credential/K8sSecret.pkl"
 
   logLevel = "info"

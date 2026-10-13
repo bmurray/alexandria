@@ -4,7 +4,8 @@
 ///     IMAGE_TAG=0.1.0 make manifests   # what release.yml does for tag v0.1.0
 ///
 /// Secrets are named by key only; deploy/secrets.sh renders the Secret from
-/// ~/.config/secrets/alexandria and it is applied by hand (never by Flux).
+/// ~/.config/secrets/valsoft.json and ~/.openai/auth.json and it is applied
+/// by hand (never by Flux).
 amends "@schema/deploy/k8s/Manifests.pkl"
 
 import "@schema/deploy/k8s/App.pkl"
@@ -21,18 +22,14 @@ app {
 
   admins { "brian@bmurray.ca" }
 
-  // The OAuth client ID is public (it appears in every redirect URL), so it
-  // lives here in git; only the client secret goes through the Secret.
-  // Replace the placeholder with the ID from the Google Cloud console
-  // (devops/README.md has the redirect URI to register).
-  google = new App.GoogleOidc {
-    clientId = "unset.apps.googleusercontent.com"
-  }
+  // Client ID and secret both come from the Secret (deploy/secrets.sh reads
+  // ~/.config/secrets/valsoft.json). devops/README.md has the redirect URI.
+  google = new App.GoogleOidc {}
 
   ai {
     enabled = true
-    opusSpendLimitUsd = 10.0
-    dailySpendLimitUsd = 15.0
+    lunaSpendLimitUsd = 5.0
+    dailySpendLimitUsd = 5.0
   }
 
   storage {

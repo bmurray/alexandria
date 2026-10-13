@@ -4,7 +4,7 @@ amends "@schema/AppConfig.pkl"
 
 import "@schema/auth/provider/Dev.pkl"
 import "@schema/auth/provider/Oidc.pkl"
-import "@schema/ai/provider/Anthropic.pkl"
+import "@schema/ai/provider/OpenAI.pkl"
 import "@schema/credential/File.pkl"
 
 logLevel = "debug"
@@ -22,47 +22,50 @@ database {
 auth {
   providers {
     new Dev {}
-    // Google sign-in. Register http://localhost:24380/api/auth/oidc/google/callback
-    // as a redirect URI; put the client in ~/.config/secrets/alexandria/google-oidc.json
-    // as {"client_id": "...", "client_secret": "..."} and enable in dev.local.pkl:
-    //   auth { providers { [1] { enabled = true } } }
+    // Google sign-in. The OAuth client lives in ~/.config/secrets/valsoft.json
+    // as {"client_id": "...", "client_secret": "..."}; register
+    // http://localhost:24380/api/auth/oidc/google/callback as a redirect URI.
     new Oidc {
       name = "google"
       displayName = "Google"
-      enabled = false
       issuer = "https://accounts.google.com"
-      clientId = "unset.apps.googleusercontent.com"
-      clientSecret = new File { path = "~/.config/secrets/alexandria/google-oidc.json"; jsonKey = "client_secret" }
+      clientId = new File { path = "~/.config/secrets/valsoft.json"; jsonKey = "client_id" }
+      clientSecret = new File { path = "~/.config/secrets/valsoft.json"; jsonKey = "client_secret" }
       extraAuthParams { ["prompt"] = "select_account" }
     }
   }
   admins { "brian@bmurray.ca"; "admin@example.com" }
 }
 
-// Prices are Anthropic list prices per million tokens, 2026-10 (claude-api skill).
-// Off until dev.local.pkl turns it on:  ai { enabled = true }
+// OpenAI through the Chat Completions API; the key is ~/.openai/auth.json {"key"}.
+// Cheap models on purpose. Prices are OpenAI list prices per million tokens,
+// 2026-10 (developers.openai.com/api/docs/pricing). e2e.pkl turns this off.
 ai {
-  enabled = false
+  enabled = true
   providers {
-    new Anthropic {
-      name = "anthropic-opus"
-      model = "claude-opus-5-5"
-      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
-      inputCostPerMillionUsd = 4.0
-      outputCostPerMillionUsd = 20.0
-      cacheReadCostPerMillionUsd = 0.20
-      priority = 10
-      spendLimitUsd = 10.0
-    }
-    new Anthropic {
-      name = "anthropic-haiku"
-      model = "claude-haiku-5-5"
-      apiKey = new File { path = "~/.config/secrets/alexandria/anthropic.json"; jsonKey = "api_key" }
+    new OpenAI {
+      name = "openai-luna"
+      model = "gpt-6-luna"
+      apiKey = new File { path = "~/.openai/auth.json"; jsonKey = "key" }
       inputCostPerMillionUsd = 0.10
       outputCostPerMillionUsd = 0.50
+      cacheReadCostPerMillionUsd = 0.01
+      reasoningEffort = "none"
+      priority = 10
+      spendLimitUsd = 5.0
+    }
+    new OpenAI {
+      name = "openai-nano"
+      model = "gpt-5-nano"
+      apiKey = new File { path = "~/.openai/auth.json"; jsonKey = "key" }
+      inputCostPerMillionUsd = 0.05
+      outputCostPerMillionUsd = 0.40
+      cacheReadCostPerMillionUsd = 0.005
+      reasoningEffort = "low"
       priority = 20
     }
   }
+  dailySpendLimitUsd = 5.0
 }
 
 otel {
